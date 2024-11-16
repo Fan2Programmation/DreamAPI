@@ -2,8 +2,6 @@ package com.dreamcatcher.intermediate.controller;
 
 import java.util.Optional;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -18,7 +16,6 @@ import com.dreamcatcher.intermediate.service.UserService;
 public class UserController {
 
     private final UserService userService;
-    private static final Logger logger = LoggerFactory.getLogger(UserController.class);
 
 
     public UserController(UserService userService) {
@@ -37,7 +34,6 @@ public class UserController {
 
     @PostMapping("/login")
     public ResponseEntity<User> login(@RequestBody User user) {
-        logger.debug("Login attempt for user: {} with password: {}", user.getUsername(), user.getPassword());
         Optional<User> foundUser = userService.loginUser(user.getUsername(), user.getPassword());
         if (foundUser.isPresent()) {
             return ResponseEntity.ok(foundUser.get());
