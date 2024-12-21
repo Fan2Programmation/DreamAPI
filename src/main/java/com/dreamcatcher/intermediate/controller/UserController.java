@@ -27,8 +27,10 @@ public class UserController {
             String username = userData.get("username");
             String password = userData.get("password");
             User newUser = userService.registerUser(username, password);
+            System.out.println("User registered successfully: " + username);
             return ResponseEntity.status(HttpStatus.CREATED).body(newUser);
         } catch (IllegalArgumentException e) {
+            System.out.println("Registration failed: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
     }
