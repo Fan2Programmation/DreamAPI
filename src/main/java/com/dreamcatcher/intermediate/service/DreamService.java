@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import com.dreamcatcher.intermediate.model.Dream;
 import com.dreamcatcher.intermediate.model.User;
 import com.dreamcatcher.intermediate.repository.DreamRepository;
+import com.dreamcatcher.intermediate.repository.UserRepository;
 
 @Service
 public class DreamService {
@@ -17,15 +18,21 @@ public class DreamService {
     @Autowired
     private DreamRepository dreamRepository;
 
-    public Dream createDream(String content, User user) {
-        if (content == null || content.isBlank()) {
-            throw new IllegalArgumentException("Dream content cannot be null or blank");
+    @Autowired
+    private UserRepository userRepository;
+
+    public Dream saveDream(String content, String username) {
+        Optional<User> userOptional = userRepository.findByUsername(username);
+        if (userOptional.isEmpty()) {
+            throw new IllegalArgumentException("User not found with username: " + username);
         }
+
+        User user = userOptional.get();
 
         Dream dream = new Dream();
         dream.setContent(content);
-        dream.setCreatedAt(LocalDateTime.now());
         dream.setUser(user);
+        dream.setCreatedAt(LocalDateTime.now());
 
         return dreamRepository.save(dream);
     }
@@ -42,11 +49,20 @@ public class DreamService {
         return dreamRepository.findById(id);
     }
 
-    public void deleteDream(Long id, User user) {
-        Optional<Dream> dream = dreamRepository.findById(id);
-        if (dream.isEmpty() || !dream.get().getUser().equals(user)) {
-            throw new IllegalArgumentException("Dream not found or unauthorized access");
+    public boolean deleteDream(Long id, String username) {
+        Optional<Dream> dreamOptional = dreamRepository.findById(id);
+
+        if (dreamOptional.isPresent()) {
+            Dream dream = dreamOptional.get();
+
+            if (dream.getUser().getUsername().equals(username)) {
+                dreamRepository.delete(dream);
+                return true;
+            } else {
+                throw new IllegalArgumentException("Unauthorized access to delete this dream.");
+            }
+        } else {
+            return false;
         }
-        dreamRepository.deleteById(id);
     }
 }

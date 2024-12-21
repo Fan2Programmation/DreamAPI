@@ -1,6 +1,5 @@
 package com.dreamcatcher.intermediate.controller;
 
-import java.security.Principal;
 import java.util.List;
 import java.util.Optional;
 
@@ -11,13 +10,11 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.dreamcatcher.intermediate.model.Dream;
-import com.dreamcatcher.intermediate.model.User;
 import com.dreamcatcher.intermediate.service.DreamService;
 
 @RestController
@@ -28,11 +25,9 @@ public class DreamController {
     private DreamService dreamService;
 
     @PostMapping("/create")
-    public ResponseEntity<?> createDream(@RequestBody String content, Principal principal) {
+    public ResponseEntity<?> createDream(@RequestParam String content, @RequestParam String username) {
         try {
-            // Assuming User is fetched based on the Principal (username)
-            User user = getUserFromPrincipal(principal);
-            Dream dream = dreamService.createDream(content, user);
+            Dream dream = dreamService.saveDream(content, username);
             return ResponseEntity.status(HttpStatus.CREATED).body(dream);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
@@ -60,21 +55,18 @@ public class DreamController {
         }
     }
     
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteDream(@PathVariable Long id, Principal principal) {
+    @DeleteMapping("/delete/{id}")
+    public ResponseEntity<?> deleteDream(@PathVariable Long id, @RequestParam String username) {
         try {
-            User user = getUserFromPrincipal(principal);
-            dreamService.deleteDream(id, user);
-            return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+            boolean deleted = dreamService.deleteDream(id, username);
+            if (deleted) {
+                return ResponseEntity.ok("Dream deleted successfully.");
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Dream not found.");
+            }
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
         }
     }
-
-    private User getUserFromPrincipal(Principal principal) {
-        User user = new User();
-        user.setUsername(principal.getName());
-        return user;
-    }
 }
+
