@@ -34,6 +34,10 @@ public class DreamService {
         return dreamRepository.findAll();
     }
 
+    public List<Dream> searchDreams(String query) {
+        return dreamRepository.findByContentContainingIgnoreCase(query);
+    }
+
     public Optional<Dream> getDreamById(Long id) {
         return dreamRepository.findById(id);
     }

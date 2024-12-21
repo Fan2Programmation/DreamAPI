@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.dreamcatcher.intermediate.model.Dream;
@@ -42,6 +43,11 @@ public class DreamController {
     public ResponseEntity<List<Dream>> getRecentDreams() {
         List<Dream> dreams = dreamService.getRecentDreams();
         return ResponseEntity.ok(dreams);
+    }
+
+    @GetMapping("/search")
+    public List<Dream> searchDreams(@RequestParam String query) {
+        return dreamService.searchDreams(query);
     }
 
     @GetMapping("/{id}")
