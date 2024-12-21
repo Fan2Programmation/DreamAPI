@@ -1,7 +1,10 @@
 package com.dreamcatcher.intermediate.controller;
 
-import java.util.Optional;
+import java.util.HashMap;
+import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -12,32 +15,36 @@ import com.dreamcatcher.intermediate.model.User;
 import com.dreamcatcher.intermediate.service.UserService;
 
 @RestController
-@RequestMapping("/passerelle/v1/users")
+@RequestMapping("/users")
 public class UserController {
 
-    private final UserService userService;
-
-
-    public UserController(UserService userService) {
-        this.userService = userService;
-    }
+    @Autowired
+    private UserService userService;
 
     @PostMapping("/register")
-    public ResponseEntity<User> register(@RequestBody User user) {
+    public ResponseEntity<?> register(@RequestBody Map<String, String> userData) {
         try {
-            User registeredUser = userService.registerUser(user.getUsername(), user.getPassword());
-            return ResponseEntity.status(201).body(registeredUser);
-        } catch (Exception e) {
-            return ResponseEntity.status(400).body(null);
+            String username = userData.get("username");
+            String password = userData.get("password");
+            User newUser = userService.registerUser(username, password);
+            return ResponseEntity.status(HttpStatus.CREATED).body(newUser);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
     }
 
     @PostMapping("/login")
-    public ResponseEntity<User> login(@RequestBody User user) {
-        Optional<User> foundUser = userService.loginUser(user.getUsername(), user.getPassword());
-        if (foundUser.isPresent()) {
-            return ResponseEntity.ok(foundUser.get());
+    public ResponseEntity<?> login(@RequestBody Map<String, String> userData) {
+        String username = userData.get("username");
+        String password = userData.get("password");
+
+        boolean isAuthenticated = userService.authenticateUser(username, password);
+        if (isAuthenticated) {
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Login successful");
+            return ResponseEntity.ok(response);
+        } else {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials");
         }
-        return ResponseEntity.status(401).body(null);
     }
 }
