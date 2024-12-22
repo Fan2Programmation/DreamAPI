@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.dreamcatcher.intermediate.model.Dream;
+import com.dreamcatcher.intermediate.model.DreamWithoutImage;
 import com.dreamcatcher.intermediate.model.User;
 import com.dreamcatcher.intermediate.repository.DreamRepository;
 import com.dreamcatcher.intermediate.repository.UserRepository;
@@ -79,12 +80,9 @@ public class DreamService {
         return all;
     }
 
-    public List<Dream> searchDreams(String q) {
+    public List<DreamWithoutImage> searchDreams(String q) {
         // Pareil pour la recherche
-        List<Dream> matches = dreamRepo.findByContentContainingIgnoreCase(q);
-        for (Dream d : matches) {
-            tryUpdatingImageIfReady(d);
-        }
+        List<DreamWithoutImage> matches = dreamRepo.findByPartialContent(q);
         return matches;
     }
 

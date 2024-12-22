@@ -8,6 +8,7 @@ import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import com.dreamcatcher.intermediate.dto.DreamCreationRequest;
 import com.dreamcatcher.intermediate.model.Dream;
+import com.dreamcatcher.intermediate.model.DreamWithoutImage;
 import com.dreamcatcher.intermediate.service.DreamService;
 import org.springframework.util.Base64Utils;
 
@@ -48,18 +49,13 @@ public class DreamController {
 
     @GetMapping("/search")
     public List<Map<String, Object>> searchDreams(@RequestParam String query) {
-        List<Dream> hits = ds.searchDreams(query);
+        List<DreamWithoutImage> hits = ds.searchDreams(query);
         List<Map<String, Object>> mapped = new ArrayList<>();
-        for (Dream d : hits) {
+        for (DreamWithoutImage d : hits) {
             Map<String, Object> o = new HashMap<>();
             o.put("content", d.getContent());
             o.put("author", d.getUser().getUsername());
             o.put("date", d.getCreatedAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
-            if (d.getImageData() != null && d.getImageData().length > 0) {
-                o.put("imageData", Base64Utils.encodeToString(d.getImageData()));
-            } else {
-                o.put("imageData", "");
-            }
             mapped.add(o);
         }
         return mapped;
