@@ -10,10 +10,12 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.dreamcatcher.intermediate.dto.DreamCreationRequest;
 import com.dreamcatcher.intermediate.model.Dream;
 import com.dreamcatcher.intermediate.service.DreamService;
 
@@ -25,10 +27,10 @@ public class DreamController {
     private DreamService dreamService;
 
     @PostMapping("/create")
-    public ResponseEntity<?> createDream(@RequestParam String content, @RequestParam String username) {
+    public ResponseEntity<?> createDream(@RequestBody DreamCreationRequest request) {
         try {
-            Dream dream = dreamService.saveDream(content, username);
-            return ResponseEntity.status(HttpStatus.CREATED).body(dream);
+            Dream savedDream = dreamService.saveDream(request.getContent(), request.getUsername());
+            return ResponseEntity.ok(savedDream);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
