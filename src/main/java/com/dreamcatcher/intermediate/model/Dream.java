@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
@@ -29,36 +30,18 @@ public class Dream {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    // Getters and Setters
-    public Long getId() {
-        return id;
-    }
+    @Lob
+    @Column
+    private byte[] imageData;
 
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getContent() {
-        return content;
-    }
-
-    public void setContent(String content) {
-        this.content = content;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public void setUser(User user) {
-        this.user = user;
-    }
+    public Long getId() { return id; }
+    public void setId(Long i) { id = i; }
+    public String getContent() { return content; }
+    public void setContent(String c) { content = c; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime t) { createdAt = t; }
+    public User getUser() { return user; }
+    public void setUser(User u) { user = u; }
+    public byte[] getImageData() { return imageData; }
+    public void setImageData(byte[] d) { imageData = d; }
 }
