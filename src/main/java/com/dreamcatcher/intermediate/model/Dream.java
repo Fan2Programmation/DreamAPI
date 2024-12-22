@@ -31,17 +31,27 @@ public class Dream {
     private User user;
 
     @Lob
-    @Column
     private byte[] imageData;
 
+    // Nouveau champ pour stocker l'ID du job stablehorde
+    // Peut être null si on n'a pas demandé l'image 
+    private String jobId;
+
     public Long getId() { return id; }
-    public void setId(Long i) { id = i; }
+    public void setId(Long v) { id = v; }
+
     public String getContent() { return content; }
-    public void setContent(String c) { content = c; }
+    public void setContent(String v) { content = v; }
+
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime t) { createdAt = t; }
+
     public User getUser() { return user; }
     public void setUser(User u) { user = u; }
+
     public byte[] getImageData() { return imageData; }
     public void setImageData(byte[] d) { imageData = d; }
+
+    public String getJobId() { return jobId; }
+    public void setJobId(String j) { jobId = j; }
 }

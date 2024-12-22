@@ -31,7 +31,11 @@ public class DreamService {
     @Autowired
     private UserRepository userRepo;
 
-    private OkHttpClient stableHordeClient = new OkHttpClient();
+    private OkHttpClient stableHordeClient = new OkHttpClient.Builder()
+            .readTimeout(300, TimeUnit.SECONDS)
+            .writeTimeout(300, TimeUnit.SECONDS)
+            .connectTimeout(60, TimeUnit.SECONDS)
+            .build();
 
     private static final String API_KEY = "sTIrn203X2lialOLQrx53A";
     private static final String BASE_URL = "https://stablehorde.net/api/v2";
@@ -39,6 +43,10 @@ public class DreamService {
     private static final String CHECK_ENDPOINT  = BASE_URL + "/generate/check";
     private static final String STATUS_ENDPOINT = BASE_URL + "/generate/status";
 
+    /**
+     * Création du rêve : on enregistre direct dans la BDD 
+     * avec imageData = null, jobId = id du job stable horde (si on l'a).
+     */
     public Dream saveDream(String content, String alias) {
         Optional<User> possible = userRepo.findByUsername(alias);
         if (possible.isEmpty()) {
@@ -49,24 +57,41 @@ public class DreamService {
         d.setContent(content);
         d.setUser(realUser);
         d.setCreatedAt(LocalDateTime.now());
-
-        // Récupération de l'image en binaire
-        byte[] pictureData = generateImage(content);
-        d.setImageData(pictureData);
+        d.setImageData(null);
+        
+        // On lance la génération asynchrone (pas de polling). 
+        // Si on veut ignorer l'erreur, on ne jette pas d'exception, 
+        // on stocke juste jobId = null si ça rate.
+        String jobId = submitAsyncJob(content);
+        d.setJobId(jobId);
 
         return dreamRepo.save(d);
     }
 
     public List<Dream> getAllDreams() {
-        return dreamRepo.findAll();
+        // On récupère tous les rêves 
+        List<Dream> all = dreamRepo.findAll();
+        // On tente de mettre à jour l'image pour ceux qui n'en ont pas 
+        // mais qui ont un jobId
+        for (Dream d : all) {
+            tryUpdatingImageIfReady(d);
+        }
+        return all;
     }
 
     public List<Dream> searchDreams(String q) {
-        return dreamRepo.findByContentContainingIgnoreCase(q);
+        // Pareil pour la recherche
+        List<Dream> matches = dreamRepo.findByContentContainingIgnoreCase(q);
+        for (Dream d : matches) {
+            tryUpdatingImageIfReady(d);
+        }
+        return matches;
     }
 
     public Optional<Dream> getDreamById(Long id) {
-        return dreamRepo.findById(id);
+        Optional<Dream> found = dreamRepo.findById(id);
+        found.ifPresent(this::tryUpdatingImageIfReady);
+        return found;
     }
 
     public boolean deleteDream(Long id, String alias) {
@@ -83,55 +108,33 @@ public class DreamService {
         return false;
     }
 
-    /**
-     * 1) POST vers /generate/async -> on récupère un jobId
-     * 2) Poll /generate/check/{jobId} jusqu’à done == true
-     * 3) GET sur /generate/status/{jobId} pour récupérer l’URL "img"
-     * 4) GET sur cette URL -> bytes -> on stocke
-     */
-    private byte[] generateImage(String prompt) {
-        String jobId = submitAsyncJob(prompt);
-        if (jobId == null) {
-            return null;
-        }
-        boolean done = waitUntilDone(jobId);
-        if (!done) {
-            return null;
-        }
-        String imageLink = fetchFinalUrl(jobId);
-        if (imageLink == null) {
-            return null;
-        }
-        return downloadImage(imageLink);
-    }
+    // -----------------------------------------------------------------------------------
+    //                              Partir du job async
+    // -----------------------------------------------------------------------------------
 
     /**
-     * Étape 1 : POST vers /generate/async
-     * Retourne jobId ou null si échec
+     * Soumet juste le prompt à /generate/async -> renvoie jobId ou null si échec
      */
     private String submitAsyncJob(String prompt) {
         try {
             JSONObject payload = new JSONObject();
             payload.put("prompt", prompt);
-
             RequestBody body = RequestBody.create(
                     payload.toString(),
                     MediaType.parse("application/json; charset=utf-8")
             );
-
             Request req = new Request.Builder()
-                    .url(ASYNC_ENDPOINT)
-                    .header("apikey", API_KEY)
-                    .post(body)
-                    .build();
-
+                .url(ASYNC_ENDPOINT)
+                .header("apikey", API_KEY)
+                .post(body)
+                .build();
             Response resp = stableHordeClient.newCall(req).execute();
             if (!resp.isSuccessful()) {
                 return null;
             }
             String raw = resp.body().string();
             JSONObject obj = new JSONObject(raw);
-            // Selon la doc, on récupère "id"
+            // stablehorde renvoie "id"
             if (obj.has("id")) {
                 return obj.getString("id");
             }
@@ -142,64 +145,77 @@ public class DreamService {
     }
 
     /**
-     * Étape 2 : Poll /generate/check/{jobId} jusqu’à "done" == true
-     * On tente X fois toutes les 5 secondes.
+     * Appelé à chaque GET de rêve(s). 
+     *  - Si imageData != null => on ne fait rien (déjà prêt).
+     *  - Si jobId == null => on ne fait rien (pas d'IA demandée).
+     *  - Sinon, on check si done == true. 
+     *    - Si oui, on fetch /generate/status pour avoir le lien, 
+     *      on télécharge l'image, on update la BDD
+     *    - Sinon, rien de plus, imageData reste null pour l'instant.
      */
-    private boolean waitUntilDone(String jobId) {
-        for (int i = 0; i < 10; i++) {
-            try {
-                TimeUnit.SECONDS.sleep(5);
-                String checkUrl = CHECK_ENDPOINT + "/" + jobId;
-                Request r = new Request.Builder()
-                        .url(checkUrl)
-                        .header("apikey", API_KEY)
-                        .get()
-                        .build();
-                Response resp = stableHordeClient.newCall(r).execute();
-                if (!resp.isSuccessful()) {
-                    continue;
-                }
-                String raw = resp.body().string();
-                JSONObject obj = new JSONObject(raw);
-                // "done": true/false
-                boolean finished = obj.optBoolean("done", false);
-                if (finished) {
-                    return true;
-                }
-            } catch (IOException | JSONException e) {
-                // On ignore et on retente
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return false;
-            }
+    private void tryUpdatingImageIfReady(Dream d) {
+        if (d.getImageData() != null) {
+            return; // Déjà mise à jour
         }
-        return false;
+        if (d.getJobId() == null) {
+            return; // Pas de job
+        }
+        // Check /generate/check/{jobId}
+        boolean isDone = isJobDone(d.getJobId());
+        if (!isDone) {
+            return; // pas encore fini
+        }
+        // Si c'est fini, on récupère l'URL
+        String finalUrl = fetchFinalUrl(d.getJobId());
+        if (finalUrl == null) {
+            return;
+        }
+        // On télécharge l'image
+        byte[] pic = downloadImage(finalUrl);
+        if (pic != null && pic.length > 0) {
+            d.setImageData(pic);
+            dreamRepo.save(d); // update la BDD
+        }
     }
 
-    /**
-     * Étape 3 : GET /generate/status/{jobId} pour obtenir l’URL "img" 
-     * (selon la doc, c’est "generations"[0].img).
-     */
+    private boolean isJobDone(String jobId) {
+        String checkUrl = CHECK_ENDPOINT + "/" + jobId;
+        Request r = new Request.Builder()
+            .url(checkUrl)
+            .header("apikey", API_KEY)
+            .get()
+            .build();
+        try (Response resp = stableHordeClient.newCall(r).execute()) {
+            if (!resp.isSuccessful()) {
+                return false;
+            }
+            String raw = resp.body().string();
+            JSONObject obj = new JSONObject(raw);
+            return obj.optBoolean("done", false);
+        } catch (IOException | JSONException e) {
+            return false;
+        }
+    }
+
     private String fetchFinalUrl(String jobId) {
-        try {
-            String statusUrl = STATUS_ENDPOINT + "/" + jobId;
-            Request r = new Request.Builder()
-                    .url(statusUrl)
-                    .header("apikey", API_KEY)
-                    .get()
-                    .build();
-            Response resp = stableHordeClient.newCall(r).execute();
+        String url = STATUS_ENDPOINT + "/" + jobId;
+        Request r = new Request.Builder()
+            .url(url)
+            .header("apikey", API_KEY)
+            .get()
+            .build();
+        try (Response resp = stableHordeClient.newCall(r).execute()) {
             if (!resp.isSuccessful()) {
                 return null;
             }
             String raw = resp.body().string();
             JSONObject obj = new JSONObject(raw);
             if (!obj.optBoolean("done", false)) {
-                return null; // la doc indique "done" == true si terminé
+                return null;
             }
-            JSONArray gens = obj.optJSONArray("generations");
-            if (gens != null && gens.length() > 0) {
-                JSONObject first = gens.getJSONObject(0);
+            JSONArray arr = obj.optJSONArray("generations");
+            if (arr != null && arr.length() > 0) {
+                JSONObject first = arr.getJSONObject(0);
                 return first.optString("img", null);
             }
         } catch (IOException | JSONException e) {
@@ -208,17 +224,12 @@ public class DreamService {
         return null;
     }
 
-    /**
-     * Étape 4 : On récupère l’image (webp, png, etc.) à partir du lien "img"
-     * On renvoie les bytes.
-     */
     private byte[] downloadImage(String link) {
-        try {
-            Request req = new Request.Builder()
-                    .url(link)
-                    .get()
-                    .build();
-            Response resp = stableHordeClient.newCall(req).execute();
+        Request req = new Request.Builder()
+            .url(link)
+            .get()
+            .build();
+        try (Response resp = stableHordeClient.newCall(req).execute()) {
             if (!resp.isSuccessful() || resp.body() == null) {
                 return null;
             }

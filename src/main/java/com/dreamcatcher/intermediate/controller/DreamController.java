@@ -1,29 +1,15 @@
 package com.dreamcatcher.intermediate.controller;
 
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
-
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-
+import org.springframework.http.*;
+import org.springframework.web.bind.annotation.*;
 import com.dreamcatcher.intermediate.dto.DreamCreationRequest;
 import com.dreamcatcher.intermediate.model.Dream;
 import com.dreamcatcher.intermediate.service.DreamService;
+import org.springframework.util.Base64Utils;
 
 @RestController
 @RequestMapping("/dreams")
@@ -44,38 +30,39 @@ public class DreamController {
 
     @GetMapping("/recent")
     public ResponseEntity<List<Map<String, Object>>> getRecent() {
-        List<Map<String, Object>> all = ds.getAllDreams().stream().map(d -> {
-            Map<String, Object> bag = new HashMap<>();
-            bag.put("content", d.getContent());
-            bag.put("author", d.getUser().getUsername());
-            bag.put("date", d.getCreatedAt().toString());
+        List<Dream> list = ds.getAllDreams();
+        List<Map<String, Object>> mapped = list.stream().map(d -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("content", d.getContent());
+            m.put("author", d.getUser().getUsername());
+            m.put("date", d.getCreatedAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
             if (d.getImageData() != null && d.getImageData().length > 0) {
-                bag.put("imageData", Base64.getEncoder().encodeToString(d.getImageData()));
+                m.put("imageData", Base64Utils.encodeToString(d.getImageData()));
             } else {
-                bag.put("imageData", "");
+                m.put("imageData", "");
             }
-            return bag;
+            return m;
         }).collect(Collectors.toList());
-        return ResponseEntity.ok(all);
-    }    
+        return ResponseEntity.ok(mapped);
+    }
 
     @GetMapping("/search")
     public List<Map<String, Object>> searchDreams(@RequestParam String query) {
         List<Dream> hits = ds.searchDreams(query);
-        List<Map<String, Object>> res = new ArrayList<>();
+        List<Map<String, Object>> mapped = new ArrayList<>();
         for (Dream d : hits) {
-            Map<String, Object> item = new HashMap<>();
-            item.put("content", d.getContent());
-            item.put("user", d.getUser().getUsername());
-            item.put("createdAt", d.getCreatedAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+            Map<String, Object> o = new HashMap<>();
+            o.put("content", d.getContent());
+            o.put("author", d.getUser().getUsername());
+            o.put("date", d.getCreatedAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
             if (d.getImageData() != null && d.getImageData().length > 0) {
-                item.put("imageData", Base64.getEncoder().encodeToString(d.getImageData()));
+                o.put("imageData", Base64Utils.encodeToString(d.getImageData()));
             } else {
-                item.put("imageData", "");
+                o.put("imageData", "");
             }
-            res.add(item);
+            mapped.add(o);
         }
-        return res;
+        return mapped;
     }
 
     @GetMapping("/{id}")
@@ -84,13 +71,13 @@ public class DreamController {
         if (found.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No dream");
         }
-        Dream e = found.get();
+        Dream d = found.get();
         Map<String, Object> r = new HashMap<>();
-        r.put("content", e.getContent());
-        r.put("author", e.getUser().getUsername());
-        r.put("date", e.getCreatedAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
-        if (e.getImageData() != null && e.getImageData().length > 0) {
-            r.put("imageData", Base64.getEncoder().encodeToString(e.getImageData()));
+        r.put("content", d.getContent());
+        r.put("author", d.getUser().getUsername());
+        r.put("date", d.getCreatedAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+        if (d.getImageData() != null && d.getImageData().length > 0) {
+            r.put("imageData", Base64Utils.encodeToString(d.getImageData()));
         } else {
             r.put("imageData", "");
         }
@@ -98,11 +85,11 @@ public class DreamController {
     }
 
     @DeleteMapping("/delete/{id}")
-    public ResponseEntity<?> delete(@PathVariable Long id, @RequestParam String username) {
+    public ResponseEntity<?> deleteDream(@PathVariable Long id, @RequestParam String username) {
         try {
-            boolean removed = ds.deleteDream(id, username);
-            if (removed) return ResponseEntity.ok("Deleted");
-            else return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Not found");
+            boolean gone = ds.deleteDream(id, username);
+            if (gone) return ResponseEntity.ok("Dream deleted");
+            else return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Dream not found");
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
         }
