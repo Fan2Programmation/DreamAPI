@@ -1,6 +1,6 @@
 # Java API for HTTP Interface between Android App and PSQL Database
 
-This project provides a Java API to facilitate communication between an Android app and a PostgreSQL database using HTTP requests. It's built with **Spring Boot** and offers endpoints for user registration and login.
+This project provides a Java API to facilitate communication between [Dreamcatcher](https://github.com/Fan2Programmation/Dreamcatcher) Android App and a PostgreSQL database using HTTP requests. It's built with **Spring Boot** and offers endpoints for Dreamcatching.
 
 ## How to Run the Server
 
