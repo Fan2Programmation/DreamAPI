@@ -1,7 +1,10 @@
 package com.dreamcatcher.intermediate.controller;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -37,10 +40,20 @@ public class DreamController {
     }
 
     @GetMapping("/recent")
-    public ResponseEntity<List<Dream>> getRecentDreams() {
-        List<Dream> dreams = dreamService.getRecentDreams();
+    public ResponseEntity<List<Map<String, Object>>> getRecentDreams() {
+        List<Map<String, Object>> dreams = dreamService.getAllDreams().stream()
+            .map(dream -> {
+                Map<String, Object> dreamMap = new HashMap<>();
+                dreamMap.put("content", dream.getContent());
+                dreamMap.put("author", dream.getUser().getUsername());
+                dreamMap.put("date", dream.getCreatedAt());
+                return dreamMap;
+            })
+            .collect(Collectors.toList());
+
         return ResponseEntity.ok(dreams);
-    }
+}
+
 
     @GetMapping("/search")
     public List<Dream> searchDreams(@RequestParam String query) {

@@ -37,7 +37,7 @@ public class DreamService {
         return dreamRepository.save(dream);
     }
 
-    public List<Dream> getRecentDreams() {
+    public List<Dream> getAllDreams() {
         return dreamRepository.findAll();
     }
 
