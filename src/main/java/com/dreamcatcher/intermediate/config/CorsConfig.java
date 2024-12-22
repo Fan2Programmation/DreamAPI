@@ -14,7 +14,7 @@ public class CorsConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**") // Autorise tous les chemins d'accès de l'API
-                        .allowedOrigins("http://localhost:8080")
+                        .allowedOrigins("http://localhost:8095")
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // Méthodes HTTP autorisées
                         .allowedHeaders("*") // Tous les en-têtes autorisés
                         .allowCredentials(true); // Autorise les cookies/identifiants
