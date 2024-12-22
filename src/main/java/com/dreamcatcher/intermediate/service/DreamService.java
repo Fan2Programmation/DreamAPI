@@ -81,7 +81,7 @@ public class DreamService {
     }
 
     public List<DreamWithoutImage> searchDreams(String q) {
-        // Pareil pour la recherche
+        // Pareil pour la recherche mais sans l'image
         List<DreamWithoutImage> matches = dreamRepo.findByPartialContent(q);
         return matches;
     }
@@ -105,11 +105,7 @@ public class DreamService {
         }
         return false;
     }
-
-    // -----------------------------------------------------------------------------------
-    //                              Partir du job async
-    // -----------------------------------------------------------------------------------
-
+    
     /**
      * Soumet juste le prompt à /generate/async -> renvoie jobId ou null si échec
      */
