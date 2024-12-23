@@ -7,8 +7,8 @@ This project provides a Java API to facilitate communication between [Dreamcatch
 Clone the repository to your machine and go into your new folder.
 
 ```bash
-git clone https://github.com/Fan2Programmation/intermediate.git
-cd intermediate
+git clone https://github.com/Fan2Programmation/dreamapi.git
+cd DreamAPI
 ```
 
 To start the server, open a terminal/command prompt and run the following commands:
